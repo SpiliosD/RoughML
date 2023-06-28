@@ -27,7 +27,7 @@
 # - Initialize the Random Number Generator(s), so that our experiments can be replicated.
 # - Determine:
 #   - The current working directory, as it's going to be used to reference various files such as the dataset, our model checkpoints e.t.c
-#   - The available hardware backend. GPU utilization is preferable, as it results in higher complition time.
+#   - The available hardware backend. GPU utilization is preferable, as it results in higher completion time.
 # - `(Optionally)` Mount Google Drive, where we can load our dataset from.
 
 # + [markdown] id="19e0a6d0"
