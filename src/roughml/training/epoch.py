@@ -23,16 +23,17 @@ def normalizedAndWeightedLoss(value, weight, max_value_so_far):
     return value_norm, value_norm_weighted, max_value_so_far
 
 
-# The training of the GAN takes place in this function.
-# It closely follows Algorithm 1 from Goodfellow’s paper, while abiding by some of the best practices 
-# shown in ganhacks. Namely, we will “construct different mini-batches for real and fake” images, 
-# and also adjust Generator’s objective function to maximize logD(G(z)). Training is split up into two main parts. 
-# Part 1 updates the Discriminator and Part 2 updates the Generator.
-# Furthermore, custom losses are calculated for the generator overall loss.
-# Specifically content loss and vector content loss are generall terms whereas in our case
-# content loss is N-Gram graph loss and vector content loss is Height Histogram and Fourier loss
-# Each independent loss is normalized and weighted
-# Those custom losses are accumulated to generators bce loss
+"""
+The training of the GAN takes place in this function. It closely follows Algorithm 1 from Goodfellow’s paper, 
+while abiding by some of the best practices shown in ganhacks. Namely, we will “construct different mini-batches 
+for real and fake” images, and also adjust Generator’s objective function to maximize logD(G(z)). 
+Training is split up into two main parts. Part 1 updates the Discriminator and Part 2 updates the Generator.
+Furthermore, custom losses are calculated for the generator overall loss. Specifically content loss and vector content 
+loss are general terms whereas in our case content loss is N-Gram graph loss and vector content loss is 
+Height Histogram and Fourier loss. Each independent loss is normalized and weighted Those custom losses are accumulated 
+to generators bce loss.
+"""
+
 def per_epoch(
     generator,
     discriminator,
@@ -44,9 +45,9 @@ def per_epoch(
     vector_content_loss_fn=None,
     loss_weights=[1.0, 1.0, 1.0],
     losses_maxima={},
-    losses_raw = {},
+    losses_raw={},
     log_every_n=None,
-    load_checkpoint = None,
+    load_checkpoint=None,
 ):
     generator.train()
 
@@ -64,30 +65,24 @@ def per_epoch(
 
     # For each batch in the dataloader
     for train_iteration, X_batch in enumerate(dataloader):
-        # change batch type to match model's checkpoint weights when model is loaded
-        # to prevent runtime error
+        # change batch type to match model's checkpoint weights when model is loaded to prevent runtime error
         if load_checkpoint:
             X_batch = X_batch.float()
-
-        ############################ Part 1 - Train the Discriminator ############################
-        # Recall, the goal of training the discriminator is to maximize the probability of correctly 
-        # classifying a given input as real or fake. 
-        # In terms of Goodfellow, we wish to “update the discriminator by ascending its stochastic gradient”. 
-        # Practically, we want to maximize log(D(x))+log(1−D(G(z))). 
-        # Due to the separate mini-batch suggestion from ganhacks, we will calculate this in two steps. 
-        # First, we will construct a batch of real samples from the training set, forward pass through D, 
-        # calculate the loss log(D(x)), then calculate the gradients in a backward pass. 
-        # Secondly, we will construct a batch of fake samples with the current generator, 
-        # forward pass this batch through D, calculate the loss log(1−D(G(z))), 
-        # and accumulate the gradients with a backward pass.
-        # Now, with the gradients accumulated from both the all-real and all-fake batches, 
-        # we call a step of the Discriminator’s optimizer.
-
-        ####################################################################
+        """
+        Part 1 - Train the Discriminator
+        Recall, the goal of training the discriminator is to maximize the probability of correctly classifying a given 
+        input as real or fake. In terms of Goodfellow, we wish to “update the discriminator by ascending its 
+        stochastic gradient”. Practically, we want to maximize log(D(x))+log(1−D(G(z))). Due to the separate mini-batch 
+        suggestion from ganhacks, we will calculate this in two steps. First, we will construct a batch of real samples 
+        from the training set, forward pass through D, calculate the loss log(D(x)), then calculate the gradients in a 
+        backward pass. Secondly, we will construct a batch of fake samples with the current generator, forward pass 
+        this batch through D, calculate the loss log(1−D(G(z))),  and accumulate the gradients with a backward pass.
+        Now, with the gradients accumulated from both the all-real and all-fake batches, we call a step of the 
+        Discriminator’s optimizer.
+        """
         # (Part 1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
-        ####################################################################
 
-        ## Train with all-real batch
+        # Train with all-real batch
         # Set the gradients of Discriminator to zero
         discriminator.zero_grad()
         # Format batch on real images with real label
@@ -110,7 +105,7 @@ def per_epoch(
         # Average Discriminator output on batch during forward pass on real images with real label (D(x))
         dis_out_real_batch_real_lbl = output.mean().item()
 
-        ## Train with all-fake batch
+        # Train with all-fake batch
         # Generate batch of latent vectors
         noise = torch.randn(
             batch_size,
@@ -140,23 +135,18 @@ def per_epoch(
         # Update Discriminator
         optimizer_discriminator.step()
 
-
-        ############################ Part 2 - Train the Generator ############################
-        # As stated in the original paper, we want to train the Generator by minimizing 
-        # log(1−D(G(z))) in an effort to generate better fakes.
-        # As mentioned, this was shown by Goodfellow to not provide sufficient gradients, 
-        # especially early in the learning process.
-        # As a fix, we instead wish to maximize log(D(G(z))).
-        # In the code we accomplish this by: classifying the Generator output from Part 1 with the Discriminator, 
-        # computing G’s loss using real labels as GT, computing G’s gradients in a backward pass, 
-        # and finally updating G’s parameters with an optimizer step.
-        # It may seem counter-intuitive to use the real labels as GT labels for the loss function, 
-        # but this allows us to use the log(x) part of the BCELoss (rather than the log(1−x) part) 
-        # which is exactly what we want.
-
-        ####################################################
+        """
+        Part 2 - Train the Generator
+        As stated in the original paper, we want to train the Generator by minimizing log(1−D(G(z))) in an effort to 
+        generate better fakes. As mentioned, this was shown by Goodfellow to not provide sufficient gradients, 
+        especially early in the learning process. As a fix, we instead wish to maximize log(D(G(z))).
+        In the code we accomplish this by: classifying the Generator output from Part 1 with the Discriminator, 
+        computing G’s loss using real labels as GT, computing G’s gradients in a backward pass, and finally updating 
+        G’s parameters with an optimizer step. It may seem counter-intuitive to use the real labels as GT labels for 
+        the loss function, but this allows us to use the log(x) part of the BCELoss (rather than the log(1−x) part) 
+        which is exactly what we want.
+        """
         # (Part 2) Update G network: maximize log(D(G(z)))
-        ####################################################
 
         # Set the gradients of Generator to zero
         generator.zero_grad()
@@ -171,7 +161,7 @@ def per_epoch(
         # Weight it and add it to the overall loss
 
         # Generator BCE loss calculated as log(D(G(z)))
-        generator_bce_loss = criterion(output, label) # get generator BCE loss for this batch
+        generator_bce_loss = criterion(output, label)  # get generator BCE loss for this batch
         # save raw generator BCE loss for fake/generated images to view in log file
         losses_raw['raw_gen_bce_loss'] += generator_bce_loss.item()
         # Calculate the normalized weighted value and also get the new maximum

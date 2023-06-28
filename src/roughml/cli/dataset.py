@@ -1,5 +1,9 @@
 import logging
 from pathlib import Path
+import sys
+import os
+print(os.getcwd())
+sys.path.append(os.path.dirname(os.path.dirname(os.getcwd())))
 
 import click
 import tqdm
@@ -68,7 +72,7 @@ def generate(generator, dataset_size, save_path):
     required=False,
     default=None,
     show_default=True,
-    type=click.Path(),
+    type=click.Path(exists=True),
     help="Where to save the resulting dataset",
 )
 @click.option(
