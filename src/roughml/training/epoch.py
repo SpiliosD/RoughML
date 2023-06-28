@@ -246,8 +246,6 @@ def per_epoch(
     for elem in losses_raw.keys():
         losses_raw[elem] = losses_raw.get(elem) / len(dataloader)
 
-
-
     return (
         generator_loss,
         discriminator_loss,
